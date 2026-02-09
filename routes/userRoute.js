@@ -32,14 +32,15 @@ import {
 //user routes
 Router.post("/register", validateRegistration, handleValidationErrors, register);
 Router.post("/login", validateLogin, handleValidationErrors, login);
-Router.get("/:id/profile", authenticate, validateUserId, profile);
-Router.patch("/:id/profile", authenticate, validateUserId, validateUser, handleValidationErrors, updateProfile);
 
-// Wishlist routes
+// Wishlist routes - moved to top to avoid route conflicts
 Router.get("/wishlist", authenticate, getWishlist);
 Router.post("/wishlist/add", authenticate, validateWishlistItem, handleValidationErrors, addToWishlist);
 Router.post("/wishlist/remove", authenticate, validateWishlistItem, handleValidationErrors, removeFromWishlist);
 Router.post("/wishlist/toggle", authenticate, validateWishlistItem, handleValidationErrors, toggleWishlist);
+
+Router.get("/:id/profile", authenticate, validateUserId, profile);
+Router.patch("/:id/profile", authenticate, validateUserId, validateUser, handleValidationErrors, updateProfile);
 
 //admin routes - all require authentication and admin role
 Router.get("/", authenticate, authorize("admin"), showUsers);
