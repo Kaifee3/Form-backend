@@ -4,7 +4,10 @@ import userModel from "../models/userModel.js";
 export const createReview = async (req, res) => {
   try {
     const { difficulty, comment, rating } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id; // Now properly set by auth middleware
+
+    console.log("Creating review for user:", userId); // Debug log
+    console.log("Review data:", { difficulty, comment, rating }); // Debug log
 
     const user = await userModel.findById(userId);
     if (!user) {
@@ -33,7 +36,7 @@ export const createReview = async (req, res) => {
       review: newReview
     });
   } catch (err) {
-    console.log(err);
+    console.log("Review creation error:", err);
     res.status(400).json({ message: "Error creating review", error: err.message });
   }
 };
@@ -348,5 +351,190 @@ export const getReviewDashboardStats = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(400).json({ message: "Error retrieving dashboard stats", error: err.message });
+  }
+};
+
+// Health check function for review system
+export const reviewHealthCheck = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    
+    // Test database connectivity and basic operations
+    const healthStatus = {
+      service: "Review System",
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      checks: {
+        database: { status: "unknown", message: "", responseTime: 0 },
+        publicReviews: { status: "unknown", message: "", count: 0 },
+        totalReviews: { status: "unknown", message: "", count: 0 }
+      }
+    };
+
+    // Test 1: Database connection
+    try {
+      const dbStartTime = Date.now();
+      const dbResult = await reviewModel.findOne().limit(1);
+      healthStatus.checks.database = {
+        status: "healthy",
+        message: "Database connection successful",
+        responseTime: Date.now() - dbStartTime
+      };
+    } catch (dbErr) {
+      healthStatus.checks.database = {
+        status: "unhealthy",
+        message: `Database connection failed: ${dbErr.message}`,
+        responseTime: Date.now() - startTime
+      };
+      healthStatus.status = "unhealthy";
+    }
+
+    // Test 2: Public reviews functionality
+    try {
+      const publicStartTime = Date.now();
+      const approvedReviews = await reviewModel.find({ status: "approved" });
+      healthStatus.checks.publicReviews = {
+        status: "healthy",
+        message: "Public reviews retrieval successful",
+        count: approvedReviews.length,
+        responseTime: Date.now() - publicStartTime
+      };
+    } catch (publicErr) {
+      healthStatus.checks.publicReviews = {
+        status: "unhealthy",
+        message: `Public reviews retrieval failed: ${publicErr.message}`,
+        count: 0
+      };
+      healthStatus.status = "unhealthy";
+    }
+
+    // Test 3: Total reviews count
+    try {
+      const totalStartTime = Date.now();
+      const totalCount = await reviewModel.countDocuments();
+      healthStatus.checks.totalReviews = {
+        status: "healthy",
+        message: "Total reviews count successful",
+        count: totalCount,
+        responseTime: Date.now() - totalStartTime
+      };
+    } catch (totalErr) {
+      healthStatus.checks.totalReviews = {
+        status: "unhealthy",
+        message: `Total reviews count failed: ${totalErr.message}`,
+        count: 0
+      };
+      healthStatus.status = "unhealthy";
+    }
+
+    // Overall response time
+    healthStatus.totalResponseTime = Date.now() - startTime;
+
+    // Return appropriate status code
+    const statusCode = healthStatus.status === "healthy" ? 200 : 503;
+    
+    res.status(statusCode).json({
+      message: `Review system health check completed - ${healthStatus.status}`,
+      health: healthStatus
+    });
+
+  } catch (err) {
+    console.log("Health check error:", err);
+    res.status(503).json({
+      message: "Review system health check failed",
+      health: {
+        service: "Review System",
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        error: err.message
+      }
+    });
+  }
+};
+
+// Debug endpoint to help troubleshoot review submission issues
+export const debugReviewSubmission = async (req, res) => {
+  try {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      auth: {
+        hasUser: !!req.user,
+        userId: req.user?.id || "undefined",
+        userEmail: req.user?.email || "undefined",
+        userRole: req.user?.role || "undefined"
+      },
+      requestBody: req.body,
+      validation: {},
+      database: {}
+    };
+
+    // Check user authentication
+    if (!req.user?.id) {
+      debugInfo.auth.issue = "No user ID found in request";
+      return res.status(401).json({
+        message: "Authentication debug - User not properly authenticated",
+        debug: debugInfo
+      });
+    }
+
+    // Check if user exists in database
+    try {
+      const user = await userModel.findById(req.user.id);
+      debugInfo.database.userExists = !!user;
+      debugInfo.database.userData = user ? {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      } : null;
+    } catch (userError) {
+      debugInfo.database.userCheckError = userError.message;
+    }
+
+    // Check for existing review
+    try {
+      const existingReview = await reviewModel.findOne({ user: req.user.id });
+      debugInfo.database.hasExistingReview = !!existingReview;
+      debugInfo.database.existingReviewData = existingReview ? {
+        id: existingReview._id,
+        status: existingReview.status,
+        createdAt: existingReview.createdAt
+      } : null;
+    } catch (reviewError) {
+      debugInfo.database.reviewCheckError = reviewError.message;
+    }
+
+    // Validate request body
+    const { difficulty, comment, rating } = req.body;
+    debugInfo.validation = {
+      difficulty: {
+        value: difficulty,
+        valid: ["easy", "moderate", "hard"].includes(difficulty),
+        required: true
+      },
+      comment: {
+        value: comment,
+        length: comment ? comment.length : 0,
+        valid: comment && comment.length >= 10 && comment.length <= 1000,
+        required: true
+      },
+      rating: {
+        value: rating,
+        type: typeof rating,
+        valid: Number.isInteger(rating) && rating >= 1 && rating <= 5,
+        required: true
+      }
+    };
+
+    res.status(200).json({
+      message: "Review submission debug information",
+      debug: debugInfo
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Debug endpoint error",
+      error: err.message
+    });
   }
 };

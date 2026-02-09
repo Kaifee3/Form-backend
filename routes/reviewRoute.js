@@ -16,10 +16,17 @@ import {
   updateReviewStatus,
   getReviewDetailsForAdmin,
   deleteReviewByAdmin,
-  getReviewDashboardStats
+  getReviewDashboardStats,
+  reviewHealthCheck,
+  debugReviewSubmission
 } from "../controllers/reviewController.js";
 
 const Router = express.Router();
+
+Router.get("/health", reviewHealthCheck);
+
+// Debug endpoint - requires authentication
+Router.get("/debug", authenticate, debugReviewSubmission);
 
 Router.get("/public", getAllApprovedReviews);
 
