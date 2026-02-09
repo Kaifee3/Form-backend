@@ -40,7 +40,7 @@ app.get("/", (req, res) => {
       wishlist: "/api/users/wishlist"
     },
     features: [
-      "User Authentication & Authorization",
+      "User Authentication & Authorizations",
       "Admin Panel & User Management", 
       "Review System",
       "Personal Wishlist (Database Persistent)"
