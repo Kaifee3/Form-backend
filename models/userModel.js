@@ -9,8 +9,7 @@ const userSchema = mongoose.Schema(
     role: { type: String, default: "user" },
     status: { type: String , default: "active"},
     wishlist: [{ 
-      type: mongoose.Schema.Types.ObjectId, 
-      ref: "Review" 
+      type: Number
     }],
   },
   { timestamps: true }

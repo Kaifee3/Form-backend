@@ -135,8 +135,8 @@ export const validateReviewId = (req, res, next) => {
 };
 
 export const validateWishlistItem = [
-  body("itemId")
+  body("monasteryId")
     .notEmpty()
-    .matches(/^[0-9a-fA-F]{24}$/)
-    .withMessage("Item ID is required and must be a valid MongoDB ObjectId"),
+    .isInt({ min: 1 })
+    .withMessage("Monastery ID is required and must be a positive integer"),
 ];

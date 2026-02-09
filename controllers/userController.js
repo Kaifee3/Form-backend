@@ -295,11 +295,11 @@ const deleteUserByAdmin = async (req, res) => {
 
 const addToWishlist = async (req, res) => {
   try {
-    const userId = req.userId; // From auth middleware
-    const { itemId } = req.body;
+    const userId = req.userId;
+    const { monasteryId } = req.body;
     
-    if (!itemId) {
-      return res.status(400).json({ message: "Item ID is required" });
+    if (!monasteryId) {
+      return res.status(400).json({ message: "Monastery ID is required" });
     }
     
     const user = await userModel.findById(userId);
@@ -307,15 +307,15 @@ const addToWishlist = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    if (user.wishlist.includes(itemId)) {
-      return res.status(400).json({ message: "Item is already in wishlist" });
+    if (user.wishlist.includes(parseInt(monasteryId))) {
+      return res.status(400).json({ message: "Monastery is already in wishlist" });
     }
     
-    user.wishlist.push(itemId);
+    user.wishlist.push(parseInt(monasteryId));
     await user.save();
     
     res.status(200).json({ 
-      message: "Item added to wishlist successfully",
+      message: "Monastery added to wishlist successfully",
       wishlist: user.wishlist 
     });
   } catch (err) {
@@ -326,11 +326,11 @@ const addToWishlist = async (req, res) => {
 
 const removeFromWishlist = async (req, res) => {
   try {
-    const userId = req.userId; // From auth middleware
-    const { itemId } = req.body;
+    const userId = req.userId;
+    const { monasteryId } = req.body;
     
-    if (!itemId) {
-      return res.status(400).json({ message: "Item ID is required" });
+    if (!monasteryId) {
+      return res.status(400).json({ message: "Monastery ID is required" });
     }
     
     const user = await userModel.findById(userId);
@@ -338,15 +338,15 @@ const removeFromWishlist = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    if (!user.wishlist.includes(itemId)) {
-      return res.status(400).json({ message: "Item is not in wishlist" });
+    if (!user.wishlist.includes(parseInt(monasteryId))) {
+      return res.status(400).json({ message: "Monastery is not in wishlist" });
     }
     
-    user.wishlist = user.wishlist.filter(item => item.toString() !== itemId);
+    user.wishlist = user.wishlist.filter(id => id !== parseInt(monasteryId));
     await user.save();
     
     res.status(200).json({ 
-      message: "Item removed from wishlist successfully",
+      message: "Monastery removed from wishlist successfully",
       wishlist: user.wishlist 
     });
   } catch (err) {
@@ -357,12 +357,9 @@ const removeFromWishlist = async (req, res) => {
 
 const getWishlist = async (req, res) => {
   try {
-    const userId = req.userId; // From auth middleware
+    const userId = req.userId;
     
-    const user = await userModel.findById(userId).populate({
-      path: 'wishlist',
-      select: 'userName difficulty comment rating status createdAt'
-    });
+    const user = await userModel.findById(userId);
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -380,11 +377,11 @@ const getWishlist = async (req, res) => {
 
 const toggleWishlist = async (req, res) => {
   try {
-    const userId = req.userId; // From auth middleware
-    const { itemId } = req.body;
+    const userId = req.userId;
+    const { monasteryId } = req.body;
     
-    if (!itemId) {
-      return res.status(400).json({ message: "Item ID is required" });
+    if (!monasteryId) {
+      return res.status(400).json({ message: "Monastery ID is required" });
     }
     
     const user = await userModel.findById(userId);
@@ -392,21 +389,22 @@ const toggleWishlist = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    let isInWishlist = user.wishlist.includes(itemId);
+    const numId = parseInt(monasteryId);
+    let isInWishlist = user.wishlist.includes(numId);
     let action;
     
     if (isInWishlist) {
-      user.wishlist = user.wishlist.filter(item => item.toString() !== itemId);
+      user.wishlist = user.wishlist.filter(id => id !== numId);
       action = "removed";
     } else {
-      user.wishlist.push(itemId);
+      user.wishlist.push(numId);
       action = "added";
     }
     
     await user.save();
     
     res.status(200).json({ 
-      message: `Item ${action} ${isInWishlist ? 'from' : 'to'} wishlist successfully`,
+      message: `Monastery ${action} ${isInWishlist ? 'from' : 'to'} wishlist successfully`,
       action: action,
       isInWishlist: !isInWishlist,
       wishlist: user.wishlist 
