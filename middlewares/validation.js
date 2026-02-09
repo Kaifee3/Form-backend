@@ -99,3 +99,45 @@ export const validateUserId = (req, res, next) => {
   }
   next();
 };
+
+// Validation middleware for review creation/update
+export const validateReview = [
+  body("difficulty")
+    .notEmpty()
+    .isIn(["easy", "moderate", "hard"])
+    .withMessage("Difficulty must be one of: easy, moderate, hard"),
+  
+  body("comment")
+    .notEmpty()
+    .trim()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage("Comment is required and must be between 10 and 1000 characters"),
+  
+  body("rating")
+    .notEmpty()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating is required and must be between 1 and 5"),
+];
+
+// Validation middleware for review status update (Admin only)
+export const validateReviewStatus = [
+  body("status")
+    .notEmpty()
+    .isIn(["pending", "approved", "rejected"])
+    .withMessage("Status must be one of: pending, approved, rejected"),
+  
+  body("adminNote")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Admin note must not exceed 500 characters"),
+];
+
+// Middleware to check if review ID is valid MongoDB ObjectId
+export const validateReviewId = (req, res, next) => {
+  const { id } = req.params;
+  if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({ message: "Invalid review ID format" });
+  }
+  next();
+};

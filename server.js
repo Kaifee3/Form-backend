@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import cors from "cors"
 import userRouter from "./routes/userRoute.js";
 import adminRouter from "./routes/adminRoute.js";
+import reviewRouter from "./routes/reviewRoute.js";
 const app = express();
 app.use(express.json());
 dotenv.config();
@@ -25,17 +26,19 @@ mongoose.connect(`mongodb+srv://${dbuser}:${dbpass}@monestryes.8dapf6y.mongodb.n
 // API Routes
 app.use("/api/users", userRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/reviews", reviewRouter);
 
 // Health check endpoint
 app.get("/", (req, res) => {
   res.json({ 
-    message: "MERN Cafe Backend - User Management System", 
+    message: "MERN Cafe Backend - User Management & Reviews System", 
     version: "1.0.0",
     endpoints: {
       users: "/api/users",
-      admin: "/api/admin"
+      admin: "/api/admin",
+      reviews: "/api/reviews"
     }
   });
 });
 
-// mongodb+srv://kaifiazam130_db_user:N1fMUQtaed3LFFFL@monestryes.8dapf6y.mongodb.net/?appName=Monestryes
+export default app;
