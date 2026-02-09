@@ -1,6 +1,5 @@
 import { body, validationResult } from "express-validator";
 
-// Validation middleware for user creation/update
 export const validateUser = [
   body("firstName")
     .optional()
@@ -38,7 +37,6 @@ export const validateUser = [
     .withMessage("Status must be either 'active' or 'inactive'"),
 ];
 
-// Validation middleware for user registration
 export const validateRegistration = [
   body("firstName")
     .notEmpty()
@@ -66,7 +64,6 @@ export const validateRegistration = [
     .withMessage("Password must contain at least one lowercase letter, one uppercase letter, and one number"),
 ];
 
-// Validation middleware for login
 export const validateLogin = [
   body("email")
     .notEmpty()
@@ -79,7 +76,6 @@ export const validateLogin = [
     .withMessage("Password is required"),
 ];
 
-// Middleware to handle validation errors
 export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -91,7 +87,6 @@ export const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Middleware to check if user ID is valid MongoDB ObjectId
 export const validateUserId = (req, res, next) => {
   const { id } = req.params;
   if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -100,7 +95,6 @@ export const validateUserId = (req, res, next) => {
   next();
 };
 
-// Validation middleware for review creation/update
 export const validateReview = [
   body("difficulty")
     .notEmpty()
@@ -119,7 +113,6 @@ export const validateReview = [
     .withMessage("Rating is required and must be between 1 and 5"),
 ];
 
-// Validation middleware for review status update (Admin only)
 export const validateReviewStatus = [
   body("status")
     .notEmpty()
@@ -133,7 +126,6 @@ export const validateReviewStatus = [
     .withMessage("Admin note must not exceed 500 characters"),
 ];
 
-// Middleware to check if review ID is valid MongoDB ObjectId
 export const validateReviewId = (req, res, next) => {
   const { id } = req.params;
   if (!id.match(/^[0-9a-fA-F]{24}$/)) {

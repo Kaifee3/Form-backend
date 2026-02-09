@@ -124,16 +124,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// const showUsers = async (req, res) => {
-//   try {
-//     const result = await userModel.find();
-//     res.status(200).json(result);
-//   } catch (err) {
-//     console.log(err);
-//     res.status(400).json({ message: "Something went wrong" });
-//   }
-// };
-
 const showUsers = async (req, res) => {
   try {
     const { page = 1, limit = 3, search = "" } = req.query;
@@ -152,13 +142,11 @@ const showUsers = async (req, res) => {
   }
 };
 
-// Admin specific functions for comprehensive user management
 const getAllUsersForAdmin = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = "", role = "", status = "" } = req.query;
     const skip = (page - 1) * limit;
     
-    // Build filter object
     let filter = {};
     if (search) {
       filter.$or = [
@@ -178,12 +166,11 @@ const getAllUsersForAdmin = async (req, res) => {
     const totalPages = Math.ceil(count / limit);
     
     const users = await userModel
-      .find(filter, { password: 0 }) // Exclude password from response
+      .find(filter, { password: 0 })
       .skip(skip)
       .limit(parseInt(limit))
       .sort({ updatedAt: -1 });
       
-    // Get user statistics
     const stats = await userModel.aggregate([
       {
         $group: {
@@ -222,7 +209,6 @@ const getUserDetailsForAdmin = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Additional user analytics could be added here
     const userDetails = {
       ...user.toObject(),
       accountAge: Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)), // days
@@ -241,13 +227,11 @@ const updateUserByAdmin = async (req, res) => {
     const id = req.params.id;
     const { firstName, lastName, email, role, status, password } = req.body;
     
-    // Check if user exists
     const existingUser = await userModel.findById(id);
     if (!existingUser) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Build update object
     const updateData = {};
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
@@ -255,7 +239,6 @@ const updateUserByAdmin = async (req, res) => {
     if (role !== undefined) updateData.role = role;
     if (status !== undefined) updateData.status = status;
     
-    // Hash password if provided
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }
@@ -284,13 +267,11 @@ const deleteUserByAdmin = async (req, res) => {
   try {
     const id = req.params.id;
     
-    // Check if user exists
     const user = await userModel.findById(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    // Prevent admin from deleting themselves
     if (req.userId === id) {
       return res.status(400).json({ message: "Cannot delete your own account" });
     }
@@ -312,6 +293,130 @@ const deleteUserByAdmin = async (req, res) => {
   }
 };
 
+const addToWishlist = async (req, res) => {
+  try {
+    const userId = req.userId; // From auth middleware
+    const { itemId } = req.body;
+    
+    if (!itemId) {
+      return res.status(400).json({ message: "Item ID is required" });
+    }
+    
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (user.wishlist.includes(itemId)) {
+      return res.status(400).json({ message: "Item is already in wishlist" });
+    }
+    
+    user.wishlist.push(itemId);
+    await user.save();
+    
+    res.status(200).json({ 
+      message: "Item added to wishlist successfully",
+      wishlist: user.wishlist 
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Something went wrong while adding to wishlist" });
+  }
+};
+
+const removeFromWishlist = async (req, res) => {
+  try {
+    const userId = req.userId; // From auth middleware
+    const { itemId } = req.body;
+    
+    if (!itemId) {
+      return res.status(400).json({ message: "Item ID is required" });
+    }
+    
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (!user.wishlist.includes(itemId)) {
+      return res.status(400).json({ message: "Item is not in wishlist" });
+    }
+    
+    user.wishlist = user.wishlist.filter(item => item.toString() !== itemId);
+    await user.save();
+    
+    res.status(200).json({ 
+      message: "Item removed from wishlist successfully",
+      wishlist: user.wishlist 
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Something went wrong while removing from wishlist" });
+  }
+};
+
+const getWishlist = async (req, res) => {
+  try {
+    const userId = req.userId; // From auth middleware
+    
+    const user = await userModel.findById(userId).populate({
+      path: 'wishlist',
+      select: 'userName difficulty comment rating status createdAt'
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.status(200).json({ 
+      message: "Wishlist retrieved successfully",
+      wishlist: user.wishlist 
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Something went wrong while retrieving wishlist" });
+  }
+};
+
+const toggleWishlist = async (req, res) => {
+  try {
+    const userId = req.userId; // From auth middleware
+    const { itemId } = req.body;
+    
+    if (!itemId) {
+      return res.status(400).json({ message: "Item ID is required" });
+    }
+    
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    let isInWishlist = user.wishlist.includes(itemId);
+    let action;
+    
+    if (isInWishlist) {
+      user.wishlist = user.wishlist.filter(item => item.toString() !== itemId);
+      action = "removed";
+    } else {
+      user.wishlist.push(itemId);
+      action = "added";
+    }
+    
+    await user.save();
+    
+    res.status(200).json({ 
+      message: `Item ${action} ${isInWishlist ? 'from' : 'to'} wishlist successfully`,
+      action: action,
+      isInWishlist: !isInWishlist,
+      wishlist: user.wishlist 
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Something went wrong while toggling wishlist" });
+  }
+};
+
 export {
   register,
   login,
@@ -326,4 +431,8 @@ export {
   getUserDetailsForAdmin,
   updateUserByAdmin,
   deleteUserByAdmin,
+  addToWishlist,
+  removeFromWishlist,
+  getWishlist,
+  toggleWishlist,
 };

@@ -8,8 +8,14 @@ const userSchema = mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, default: "user" },
     status: { type: String , default: "active"},
+    wishlist: [{ 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "Review" 
+    }],
   },
   { timestamps: true }
 );
+
+userSchema.index({ "wishlist": 1 });
 
 export default mongoose.model("User", userSchema);

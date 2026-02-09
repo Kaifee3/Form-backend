@@ -5,7 +5,8 @@ import {
   validateRegistration, 
   validateLogin, 
   handleValidationErrors, 
-  validateUserId 
+  validateUserId,
+  validateWishlistItem 
 } from "../middlewares/validation.js";
 const Router = express.Router();
 import {
@@ -22,6 +23,10 @@ import {
   getUserDetailsForAdmin,
   updateUserByAdmin,
   deleteUserByAdmin,
+  addToWishlist,
+  removeFromWishlist,
+  getWishlist,
+  toggleWishlist,
 } from "../controllers/userController.js";
 
 //user routes
@@ -29,6 +34,12 @@ Router.post("/register", validateRegistration, handleValidationErrors, register)
 Router.post("/login", validateLogin, handleValidationErrors, login);
 Router.get("/:id/profile", authenticate, validateUserId, profile);
 Router.patch("/:id/profile", authenticate, validateUserId, validateUser, handleValidationErrors, updateProfile);
+
+// Wishlist routes
+Router.get("/wishlist", authenticate, getWishlist);
+Router.post("/wishlist/add", authenticate, validateWishlistItem, handleValidationErrors, addToWishlist);
+Router.post("/wishlist/remove", authenticate, validateWishlistItem, handleValidationErrors, removeFromWishlist);
+Router.post("/wishlist/toggle", authenticate, validateWishlistItem, handleValidationErrors, toggleWishlist);
 
 //admin routes - all require authentication and admin role
 Router.get("/", authenticate, authorize("admin"), showUsers);

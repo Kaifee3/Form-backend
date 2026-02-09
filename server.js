@@ -35,9 +35,16 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       users: "/api/users",
-      admin: "/api/admin",
-      reviews: "/api/reviews"
-    }
+      admin: "/api/admin", 
+      reviews: "/api/reviews",
+      wishlist: "/api/users/wishlist"
+    },
+    features: [
+      "User Authentication & Authorization",
+      "Admin Panel & User Management", 
+      "Review System",
+      "Personal Wishlist (Database Persistent)"
+    ]
   });
 });
 
