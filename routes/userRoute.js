@@ -12,6 +12,7 @@ const Router = express.Router();
 import {
   register,
   login,
+  googleLogin,
   profile,
   updateUser,
   deleteUser,
@@ -32,6 +33,7 @@ import {
 //user routes
 Router.post("/register", validateRegistration, handleValidationErrors, register);
 Router.post("/login", validateLogin, handleValidationErrors, login);
+Router.post("/google-login", googleLogin);
 
 // Wishlist routes - moved to top to avoid route conflicts
 Router.get("/wishlist", authenticate, getWishlist);

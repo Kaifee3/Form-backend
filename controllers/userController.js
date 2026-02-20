@@ -1,7 +1,10 @@
 import userModel from "../models/userModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from 'google-auth-library';
+
 const SECRET = "something";
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const profile = async (req, res) => {
   try {
     const id = req.params.id;
@@ -74,6 +77,57 @@ const login = async (req, res) => {
     res.status(500).json({ message: "Something went wrong" });
   }
 };
+
+const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    // Verify the Google token
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId } = payload;
+    
+    // Find or create user in database
+    let user = await userModel.findOne({ email });
+    if (!user) {
+      user = await userModel.create({ 
+        email, 
+        name, 
+        picture, 
+        googleId,
+        firstName: name.split(' ')[0],
+        lastName: name.split(' ').slice(1).join(' ') || ''
+      });
+    } else {
+      // Update user with Google info if not already present
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.picture = picture;
+        if (!user.name) user.name = name;
+        await user.save();
+      }
+    }
+    
+    // Generate JWT token (using same format as regular login)
+    const userObj = {
+      id: user._id,
+      firstName: user.firstName || user.name.split(' ')[0],
+      email: user.email,
+      role: user.role,
+    };
+    const token = jwt.sign(userObj, SECRET, { expiresIn: "1h" });
+    
+    res.status(200).json({ ...userObj, token });
+  } catch (error) {
+    console.log(error);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
+};
+
 const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
@@ -418,6 +472,7 @@ const toggleWishlist = async (req, res) => {
 export {
   register,
   login,
+  googleLogin,
   showUsers,
   deleteUser,
   updateUser,
