@@ -113,19 +113,6 @@ export const validateReview = [
     .withMessage("Rating is required and must be between 1 and 5"),
 ];
 
-export const validateReviewStatus = [
-  body("status")
-    .notEmpty()
-    .isIn(["pending", "approved", "rejected"])
-    .withMessage("Status must be one of: pending, approved, rejected"),
-  
-  body("adminNote")
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage("Admin note must not exceed 500 characters"),
-];
-
 export const validateReviewId = (req, res, next) => {
   const { id } = req.params;
   if (!id.match(/^[0-9a-fA-F]{24}$/)) {

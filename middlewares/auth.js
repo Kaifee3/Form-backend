@@ -9,14 +9,12 @@ const authenticate = (req, res, next) => {
     token = token.split(" ")[1];
     const user = jwt.verify(token, SECRET);
     
-    // Set user object with all user information
     req.user = {
       id: user.id,
       email: user.email,
       role: user.role
     };
     
-    // Keep backward compatibility
     req.role = user.role;
     req.userId = user.id;
     req.userEmail = user.email;

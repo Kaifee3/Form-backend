@@ -4,7 +4,7 @@ import userModel from "../models/userModel.js";
 export const createReview = async (req, res) => {
   try {
     const { difficulty, comment, rating } = req.body;
-    const userId = req.user.id; // Now properly set by auth middleware
+    const userId = req.user.id;
 
     console.log("Creating review for user:", userId); // Debug log
     console.log("Review data:", { difficulty, comment, rating }); // Debug log
@@ -32,7 +32,7 @@ export const createReview = async (req, res) => {
     await newReview.save();
 
     res.status(201).json({
-      message: "Review submitted successfully! It will be reviewed by admin.",
+      message: "Review submitted successfully!",
       review: newReview
     });
   } catch (err) {
@@ -70,7 +70,6 @@ export const updateUserReview = async (req, res) => {
     review.difficulty = difficulty;
     review.comment = comment;
     review.rating = rating;
-    review.status = "pending";
 
     await review.save();
 
@@ -103,10 +102,10 @@ export const deleteUserReview = async (req, res) => {
   }
 };
 
-export const getAllApprovedReviews = async (req, res) => {
+export const getAllReviews = async (req, res) => {
   try {
     const { difficulty, page = 1, limit = 10 } = req.query;
-    const filter = { status: "approved" };
+    const filter = {};
     
     if (difficulty) {
       filter.difficulty = difficulty;
@@ -121,7 +120,6 @@ export const getAllApprovedReviews = async (req, res) => {
     const total = await reviewModel.countDocuments(filter);
 
     const stats = await reviewModel.aggregate([
-      { $match: { status: "approved" } },
       {
         $group: {
           _id: null,
@@ -165,10 +163,9 @@ export const getAllApprovedReviews = async (req, res) => {
 
 export const getAllReviewsForAdmin = async (req, res) => {
   try {
-    const { status, difficulty, page = 1, limit = 10 } = req.query;
+    const { difficulty, page = 1, limit = 10 } = req.query;
     const filter = {};
     
-    if (status) filter.status = status;
     if (difficulty) filter.difficulty = difficulty;
 
     const reviews = await reviewModel
@@ -183,7 +180,7 @@ export const getAllReviewsForAdmin = async (req, res) => {
     const overviewStats = await reviewModel.aggregate([
       {
         $group: {
-          _id: "$status",
+          _id: "$difficulty",
           count: { $sum: 1 },
           avgRating: { $avg: "$rating" }
         }
@@ -203,40 +200,6 @@ export const getAllReviewsForAdmin = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(400).json({ message: "Error retrieving admin reviews", error: err.message });
-  }
-};
-
-export const updateReviewStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, adminNote } = req.body;
-
-    if (!["pending", "approved", "rejected"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const review = await reviewModel.findByIdAndUpdate(
-      id, 
-      { 
-        status, 
-        adminNote,
-        reviewedAt: new Date(),
-        reviewedBy: req.user.id
-      },
-      { new: true }
-    ).populate('user', 'firstName lastName email');
-
-    if (!review) {
-      return res.status(404).json({ message: "Review not found" });
-    }
-
-    res.status(200).json({
-      message: `Review ${status} successfully`,
-      review
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Error updating review status", error: err.message });
   }
 };
 
@@ -286,18 +249,7 @@ export const getReviewDashboardStats = async (req, res) => {
     const stats = await reviewModel.aggregate([
       {
         $facet: {
-          statusBreakdown: [
-            {
-              $group: {
-                _id: "$status",
-                count: { $sum: 1 }
-              }
-            }
-          ],
           difficultyBreakdown: [
-            {
-              $match: { status: "approved" }
-            },
             {
               $group: {
                 _id: "$difficulty",
@@ -311,20 +263,11 @@ export const getReviewDashboardStats = async (req, res) => {
               $group: {
                 _id: null,
                 totalReviews: { $sum: 1 },
-                averageRating: { $avg: "$rating" },
-                pendingReviews: {
-                  $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] }
-                },
-                approvedReviews: {
-                  $sum: { $cond: [{ $eq: ["$status", "approved"] }, 1, 0] }
-                }
+                averageRating: { $avg: "$rating" }
               }
             }
           ],
           recentReviews: [
-            {
-              $match: { status: "pending" }
-            },
             {
               $sort: { createdAt: -1 }
             },
@@ -392,11 +335,11 @@ export const reviewHealthCheck = async (req, res) => {
     // Test 2: Public reviews functionality
     try {
       const publicStartTime = Date.now();
-      const approvedReviews = await reviewModel.find({ status: "approved" });
+      const allReviews = await reviewModel.find({});
       healthStatus.checks.publicReviews = {
         status: "healthy",
         message: "Public reviews retrieval successful",
-        count: approvedReviews.length,
+        count: allReviews.length,
         responseTime: Date.now() - publicStartTime
       };
     } catch (publicErr) {

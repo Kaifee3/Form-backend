@@ -27,11 +27,6 @@ const reviewSchema = mongoose.Schema(
       min: 1,
       max: 5,
       required: true
-    },
-    status: {
-      type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending"
     }
   },
   { timestamps: true }
@@ -39,6 +34,5 @@ const reviewSchema = mongoose.Schema(
 
 reviewSchema.index({ user: 1, createdAt: -1 });
 reviewSchema.index({ difficulty: 1 });
-reviewSchema.index({ status: 1 });
 
 export default mongoose.model("Review", reviewSchema);

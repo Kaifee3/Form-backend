@@ -2,7 +2,6 @@ import express from "express";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import { 
   validateReview, 
-  validateReviewStatus,
   validateReviewId,
   handleValidationErrors 
 } from "../middlewares/validation.js";
@@ -11,9 +10,8 @@ import {
   getUserReviews,
   updateUserReview,
   deleteUserReview,
-  getAllApprovedReviews,
+  getAllReviews,
   getAllReviewsForAdmin,
-  updateReviewStatus,
   getReviewDetailsForAdmin,
   deleteReviewByAdmin,
   getReviewDashboardStats,
@@ -25,10 +23,9 @@ const Router = express.Router();
 
 Router.get("/health", reviewHealthCheck);
 
-// Debug endpoint - requires authentication
 Router.get("/debug", authenticate, debugReviewSubmission);
 
-Router.get("/public", getAllApprovedReviews);
+Router.get("/public", getAllReviews);
 
 Router.post("/", authenticate, validateReview, handleValidationErrors, createReview);
 
@@ -46,8 +43,6 @@ Router.get("/admin/dashboard/stats", getReviewDashboardStats);
 Router.get("/admin", getAllReviewsForAdmin);
 
 Router.get("/admin/:id", validateReviewId, getReviewDetailsForAdmin);
-
-Router.patch("/admin/:id/status", validateReviewId, validateReviewStatus, handleValidationErrors, updateReviewStatus);
 
 Router.delete("/admin/:id", validateReviewId, deleteReviewByAdmin);
 
