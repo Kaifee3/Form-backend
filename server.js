@@ -23,12 +23,10 @@ mongoose.connect(`mongodb+srv://${dbuser}:${dbpass}@monestryes.8dapf6y.mongodb.n
   });
 });
 
-// API Routes
 app.use("/api/users", userRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/reviews", reviewRouter);
 
-// Health check endpoint
 app.get("/", (req, res) => {
   res.json({ 
     message: "MERN Cafe Backend - User Management & Reviews System", 

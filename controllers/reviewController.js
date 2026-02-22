@@ -14,13 +14,6 @@ export const createReview = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const existingReview = await reviewModel.findOne({ user: userId });
-    if (existingReview) {
-      return res.status(400).json({ 
-        message: "You have already submitted a review. You can update your existing review." 
-      });
-    }
-
     const newReview = new reviewModel({
       user: userId,
       userName: `${user.firstName} ${user.lastName}`,
