@@ -16,7 +16,9 @@ import {
   deleteReviewByAdmin,
   getReviewDashboardStats,
   reviewHealthCheck,
-  debugReviewSubmission
+  debugReviewSubmission,
+  getMonasteries,
+  getReviewsByMonastery
 } from "../controllers/reviewController.js";
 
 const Router = express.Router();
@@ -27,11 +29,17 @@ Router.get("/debug", authenticate, debugReviewSubmission);
 
 Router.get("/public", getAllReviews);
 
+Router.get("/monasteries", getMonasteries);
+
+Router.get("/monastery/:monasteryName", getReviewsByMonastery);
+
 Router.post("/", authenticate, validateReview, handleValidationErrors, createReview);
 
 Router.get("/my-reviews", authenticate, getUserReviews);
 
 Router.put("/my-review", authenticate, validateReview, handleValidationErrors, updateUserReview);
+
+Router.put("/my-review/:reviewId", authenticate, validateReview, handleValidationErrors, updateUserReview);
 
 Router.delete("/my-review", authenticate, deleteUserReview);
 

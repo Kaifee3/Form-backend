@@ -111,6 +111,12 @@ export const validateReview = [
     .notEmpty()
     .isInt({ min: 1, max: 5 })
     .withMessage("Rating is required and must be between 1 and 5"),
+    
+  body("monastery")
+    .notEmpty()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Monastery name is required and must be between 2 and 100 characters"),
 ];
 
 export const validateReviewId = (req, res, next) => {

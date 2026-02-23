@@ -3,20 +3,25 @@ import userModel from "../models/userModel.js";
 
 export const createReview = async (req, res) => {
   try {
-    const { difficulty, comment, rating } = req.body;
+    const { difficulty, comment, rating, monastery } = req.body;
     const userId = req.user.id;
 
     console.log("Creating review for user:", userId); // Debug log
-    console.log("Review data:", { difficulty, comment, rating }); // Debug log
+    console.log("Review data:", { difficulty, comment, rating, monastery }); // Debug log
 
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if (!monastery || monastery.trim() === '') {
+      return res.status(400).json({ message: "Monastery name is required" });
+    }
+
     const newReview = new reviewModel({
       user: userId,
       userName: `${user.firstName} ${user.lastName}`,
+      monastery: monastery.trim(),
       difficulty,
       comment,
       rating
@@ -37,7 +42,14 @@ export const createReview = async (req, res) => {
 export const getUserReviews = async (req, res) => {
   try {
     const userId = req.user.id;
-    const reviews = await reviewModel.find({ user: userId }).sort({ createdAt: -1 });
+    const { monastery } = req.query;
+    
+    const filter = { user: userId };
+    if (monastery) {
+      filter.monastery = monastery;
+    }
+    
+    const reviews = await reviewModel.find(filter).sort({ createdAt: -1 });
     
     res.status(200).json({
       message: "User reviews retrieved successfully",
@@ -52,10 +64,16 @@ export const getUserReviews = async (req, res) => {
 
 export const updateUserReview = async (req, res) => {
   try {
-    const { difficulty, comment, rating } = req.body;
+    const { difficulty, comment, rating, monastery } = req.body;
     const userId = req.user.id;
+    const { reviewId } = req.params;
 
-    const review = await reviewModel.findOne({ user: userId });
+    const filter = { user: userId };
+    if (reviewId) {
+      filter._id = reviewId;
+    }
+
+    const review = await reviewModel.findOne(filter);
     if (!review) {
       return res.status(404).json({ message: "No review found to update" });
     }
@@ -63,6 +81,9 @@ export const updateUserReview = async (req, res) => {
     review.difficulty = difficulty;
     review.comment = comment;
     review.rating = rating;
+    if (monastery) {
+      review.monastery = monastery.trim();
+    }
 
     await review.save();
 
@@ -97,11 +118,15 @@ export const deleteUserReview = async (req, res) => {
 
 export const getAllReviews = async (req, res) => {
   try {
-    const { difficulty, page = 1, limit = 10 } = req.query;
+    const { difficulty, monastery, page = 1, limit = 10 } = req.query;
     const filter = {};
     
     if (difficulty) {
       filter.difficulty = difficulty;
+    }
+    
+    if (monastery) {
+      filter.monastery = monastery;
     }
 
     const reviews = await reviewModel
@@ -112,7 +137,10 @@ export const getAllReviews = async (req, res) => {
 
     const total = await reviewModel.countDocuments(filter);
 
+    // Get stats for the specific monastery (or all if no monastery specified)
+    const statsFilter = monastery ? { monastery } : {};
     const stats = await reviewModel.aggregate([
+      { $match: statsFilter },
       {
         $group: {
           _id: null,
@@ -134,6 +162,7 @@ export const getAllReviews = async (req, res) => {
 
     res.status(200).json({
       message: "Reviews retrieved successfully",
+      monastery: monastery || "all monasteries",
       reviews,
       pagination: {
         currentPage: parseInt(page),
@@ -156,10 +185,11 @@ export const getAllReviews = async (req, res) => {
 
 export const getAllReviewsForAdmin = async (req, res) => {
   try {
-    const { difficulty, page = 1, limit = 10 } = req.query;
+    const { difficulty, monastery, page = 1, limit = 10 } = req.query;
     const filter = {};
     
     if (difficulty) filter.difficulty = difficulty;
+    if (monastery) filter.monastery = monastery;
 
     const reviews = await reviewModel
       .find(filter)
@@ -171,6 +201,7 @@ export const getAllReviewsForAdmin = async (req, res) => {
     const total = await reviewModel.countDocuments(filter);
 
     const overviewStats = await reviewModel.aggregate([
+      { $match: monastery ? { monastery } : {} },
       {
         $group: {
           _id: "$difficulty",
@@ -182,6 +213,7 @@ export const getAllReviewsForAdmin = async (req, res) => {
 
     res.status(200).json({
       message: "Admin reviews retrieved successfully",
+      monastery: monastery || "all monasteries",
       reviews,
       pagination: {
         currentPage: parseInt(page),
@@ -239,7 +271,11 @@ export const deleteReviewByAdmin = async (req, res) => {
 
 export const getReviewDashboardStats = async (req, res) => {
   try {
+    const { monastery } = req.query;
+    const matchStage = monastery ? { $match: { monastery } } : { $match: {} };
+    
     const stats = await reviewModel.aggregate([
+      matchStage,
       {
         $facet: {
           difficultyBreakdown: [
@@ -259,6 +295,16 @@ export const getReviewDashboardStats = async (req, res) => {
                 averageRating: { $avg: "$rating" }
               }
             }
+          ],
+          monasteryStats: [
+            {
+              $group: {
+                _id: "$monastery",
+                reviewCount: { $sum: 1 },
+                avgRating: { $avg: "$rating" }
+              }
+            },
+            { $sort: { reviewCount: -1 } }
           ],
           recentReviews: [
             {
@@ -282,6 +328,7 @@ export const getReviewDashboardStats = async (req, res) => {
 
     res.status(200).json({
       message: "Dashboard stats retrieved successfully",
+      monastery: monastery || "all monasteries",
       stats: stats[0]
     });
   } catch (err) {
@@ -388,6 +435,105 @@ export const reviewHealthCheck = async (req, res) => {
   }
 };
 
+// Get list of all monasteries that have reviews
+export const getMonasteries = async (req, res) => {
+  try {
+    const monasteries = await reviewModel.aggregate([
+      {
+        $group: {
+          _id: "$monastery",
+          reviewCount: { $sum: 1 },
+          averageRating: { $avg: "$rating" },
+          lastReview: { $max: "$createdAt" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          name: "$_id",
+          reviewCount: 1,
+          averageRating: 1,
+          lastReview: 1
+        }
+      },
+      { $sort: { reviewCount: -1 } }
+    ]);
+
+    res.status(200).json({
+      message: "Monasteries retrieved successfully",
+      monasteries,
+      count: monasteries.length
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ message: "Error retrieving monasteries", error: err.message });
+  }
+};
+
+// Get reviews by monastery name
+export const getReviewsByMonastery = async (req, res) => {
+  try {
+    const { monasteryName } = req.params;
+    const { difficulty, page = 1, limit = 10 } = req.query;
+    
+    const filter = { monastery: monasteryName };
+    if (difficulty) {
+      filter.difficulty = difficulty;
+    }
+
+    const reviews = await reviewModel
+      .find(filter)
+      .populate('user', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await reviewModel.countDocuments(filter);
+
+    const stats = await reviewModel.aggregate([
+      { $match: { monastery: monasteryName } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: "$rating" },
+          totalReviews: { $sum: 1 },
+          difficultyBreakdown: {
+            $push: "$difficulty"
+          }
+        }
+      }
+    ]);
+
+    const difficultyStats = {};
+    if (stats.length > 0) {
+      stats[0].difficultyBreakdown.forEach(diff => {
+        difficultyStats[diff] = (difficultyStats[diff] || 0) + 1;
+      });
+    }
+
+    res.status(200).json({
+      message: `Reviews for ${monasteryName} retrieved successfully`,
+      monastery: monasteryName,
+      reviews,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalReviews: total,
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      },
+      stats: stats.length > 0 ? {
+        averageRating: stats[0].averageRating,
+        totalReviews: stats[0].totalReviews,
+        difficultyBreakdown: difficultyStats
+      } : null
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).json({ message: "Error retrieving monastery reviews", error: err.message });
+  }
+};
+
 // Debug endpoint to help troubleshoot review submission issues
 export const debugReviewSubmission = async (req, res) => {
   try {
@@ -427,13 +573,18 @@ export const debugReviewSubmission = async (req, res) => {
       debugInfo.database.userCheckError = userError.message;
     }
 
-    // Check for existing review
+    // Check for existing review for this monastery
     try {
-      const existingReview = await reviewModel.findOne({ user: req.user.id });
+      const { monastery } = req.body;
+      const filter = { user: req.user.id };
+      if (monastery) {
+        filter.monastery = monastery;
+      }
+      const existingReview = await reviewModel.findOne(filter);
       debugInfo.database.hasExistingReview = !!existingReview;
       debugInfo.database.existingReviewData = existingReview ? {
         id: existingReview._id,
-        status: existingReview.status,
+        monastery: existingReview.monastery,
         createdAt: existingReview.createdAt
       } : null;
     } catch (reviewError) {
@@ -441,7 +592,7 @@ export const debugReviewSubmission = async (req, res) => {
     }
 
     // Validate request body
-    const { difficulty, comment, rating } = req.body;
+    const { difficulty, comment, rating, monastery } = req.body;
     debugInfo.validation = {
       difficulty: {
         value: difficulty,
@@ -458,6 +609,11 @@ export const debugReviewSubmission = async (req, res) => {
         value: rating,
         type: typeof rating,
         valid: Number.isInteger(rating) && rating >= 1 && rating <= 5,
+        required: true
+      },
+      monastery: {
+        value: monastery,
+        valid: monastery && monastery.trim().length > 0,
         required: true
       }
     };

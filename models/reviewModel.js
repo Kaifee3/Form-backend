@@ -11,6 +11,11 @@ const reviewSchema = mongoose.Schema(
       type: String,
       required: true
     },
+    monastery: {
+      type: String,
+      required: true,
+      trim: true
+    },
     difficulty: { 
       type: String, 
       enum: ["easy", "moderate", "hard"], 
@@ -34,5 +39,7 @@ const reviewSchema = mongoose.Schema(
 
 reviewSchema.index({ user: 1, createdAt: -1 });
 reviewSchema.index({ difficulty: 1 });
+reviewSchema.index({ monastery: 1, createdAt: -1 });
+reviewSchema.index({ monastery: 1, difficulty: 1 });
 
 export default mongoose.model("Review", reviewSchema);
